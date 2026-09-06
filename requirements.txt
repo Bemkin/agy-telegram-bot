@@ -1,0 +1,16 @@
+# Core Antigravity & Telegram
+google-antigravity>=0.1.12
+python-telegram-bot>=22.0
+python-dotenv>=1.0.0
+
+# Mission Control Web Server & Telegram Mini App
+fastapi>=0.110.0
+uvicorn>=0.28.0
+pydantic>=2.0.0
+
+# Live preview & tunnels
+playwright>=1.40.0
+pycloudflared>=0.3.0
+
+# Optional: for voice note transcription
+# google-genai>=1.0

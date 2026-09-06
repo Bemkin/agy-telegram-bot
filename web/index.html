@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Antigravity Mission Control</title>
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="theme-dark">
+  <div id="app" class="app-container">
+    
+    <!-- Top Global Header -->
+    <header class="top-nav">
+      <div class="nav-left">
+        <div class="project-selector" id="projectSelectorBtn" onclick="toggleProjectModal()">
+          <span class="project-icon">📂</span>
+          <span class="project-name" id="currentProjectName">My Project</span>
+          <span class="dropdown-arrow">▾</span>
+        </div>
+      </div>
+      <div class="nav-right">
+        <div class="model-badge" id="currentModelBadge">
+          <span class="pulse-dot"></span>
+          <span id="currentModelName">3.5 Flash Lite</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Area (Tab Views) -->
+    <main class="content-viewport">
+      
+      <!-- TAB 1: 🎛️ DASHBOARD / COCKPIT -->
+      <section id="tab-dashboard" class="tab-pane active">
+        <!-- Live App Preview Card -->
+        <div class="card preview-card">
+          <div class="card-header">
+            <span class="card-title">📸 Live Website Preview</span>
+            <button class="icon-btn" onclick="refreshPreview()" title="Refresh Screenshot">🔄</button>
+          </div>
+          <div class="preview-viewport" id="previewViewport" onclick="openLiveTunnel()">
+            <img id="previewImg" src="/api/preview/image" alt="Live App Preview" onerror="handlePreviewError()">
+            <div class="preview-overlay">
+              <span class="live-pill">🟢 Live on Port <span id="previewPort">8080</span></span>
+              <span class="overlay-text">Tap to Open Live App ↗</span>
+            </div>
+          </div>
+          <div class="preview-actions">
+            <button class="btn btn-primary" onclick="openLiveTunnel()">
+              🌐 Open Live App
+            </button>
+            <button class="btn btn-glass" onclick="toggleTunnel()">
+              <span id="tunnelStatusText">Stop Tunnel</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Status Metrics Grid -->
+        <div class="status-grid">
+          <div class="metric-card">
+            <div class="metric-icon">⚡</div>
+            <div class="metric-info">
+              <span class="metric-label">Dev Server</span>
+              <span class="metric-val" id="metricDevStatus">🟢 Running</span>
+            </div>
+            <button class="micro-btn" onclick="restartDevServer()">Restart</button>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon">🐙</div>
+            <div class="metric-info">
+              <span class="metric-label">Git Branch</span>
+              <span class="metric-val" id="metricGitBranch">main (clean)</span>
+            </div>
+            <button class="micro-btn" onclick="switchTab('diffs')">Diff</button>
+          </div>
+        </div>
+
+        <!-- Haptic Action Bar -->
+        <div class="section-title">⚡ Quick Actions</div>
+        <div class="quick-actions-grid">
+          <button class="action-tile" onclick="switchTab('chat')">
+            <span class="action-icon">💬</span>
+            <span class="action-name">Chat AI</span>
+          </button>
+          <button class="action-tile" onclick="triggerNewPlan()">
+            <span class="action-icon">🧠</span>
+            <span class="action-name">New Plan</span>
+          </button>
+          <button class="action-tile" onclick="switchTab('history')">
+            <span class="action-icon">📜</span>
+            <span class="action-name">History</span>
+          </button>
+          <button class="action-tile" onclick="switchTab('terminal')">
+            <span class="action-icon">📋</span>
+            <span class="action-name">Live Logs</span>
+          </button>
+        </div>
+
+        <!-- Recent Activity Feed -->
+        <div class="card activity-card">
+          <div class="card-header">
+            <span class="card-title">🤖 Active Mode & Capabilities</span>
+          </div>
+          <div class="activity-list" id="activityList">
+            <div class="activity-item">
+              <span class="activity-dot"></span>
+              <div class="activity-text">
+                <span class="activity-title">🧠 Plan Mode Active</span>
+                <span class="activity-time">Explore & brainstorm safely</span>
+              </div>
+            </div>
+            <div class="activity-item">
+              <span class="activity-dot"></span>
+              <div class="activity-text">
+                <span class="activity-title">Dev server listening on localhost</span>
+                <span class="activity-time">Active</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: 💬 IN-APP AI CHAT -->
+      <section id="tab-chat" class="tab-pane">
+        <div class="chat-viewport" id="chatViewport">
+          <div class="chat-messages" id="chatMessagesList">
+            <div class="chat-msg msg-ai">
+              <div class="msg-avatar">🤖</div>
+              <div class="msg-bubble">
+                <div class="msg-author">Antigravity AI Partner</div>
+                <div class="msg-content">
+                  👋 <b>I'm ready!</b> What are we building or debugging today?<br><br>
+                  Type your ideas below, or use quick commands like <code>/plan &lt;feature&gt;</code> to formulate safe milestone plans.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Prompt Chips -->
+        <div class="prompt-chips-bar">
+          <button class="chip" onclick="insertPrompt('/plan ')">🧠 /plan</button>
+          <button class="chip" onclick="insertPrompt('/status')">📊 /status</button>
+          <button class="chip" onclick="insertPrompt('Explain the project structure')">📁 Structure</button>
+          <button class="chip" onclick="insertPrompt('Check for any build or lint errors')">🔍 Check Errors</button>
+        </div>
+
+        <!-- Sticky In-App Chat Input Bar -->
+        <div class="chat-input-bar">
+          <textarea id="chatTextInput" class="chat-input" placeholder="Message Antigravity AI on your laptop..." rows="1" onkeydown="handleChatKeyDown(event)"></textarea>
+          <button class="chat-send-btn" id="chatSendBtn" onclick="submitChatMessage()">
+            <span>➤</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- TAB 3: 🧠 PLANS & COMPLETED WALKTHROUGHS -->
+      <section id="tab-plans" class="tab-pane">
+        <!-- Sub-navigation: Active Plan vs Completed Tasks -->
+        <div class="plan-subnav">
+          <button class="subnav-pill active" id="subnavActiveBtn" onclick="switchPlanSubView('active', this)">📋 Active Plan</button>
+          <button class="subnav-pill" id="subnavWalkthroughBtn" onclick="switchPlanSubView('walkthrough', this)">✅ Completed Walkthrough</button>
+        </div>
+
+        <!-- VIEW A: Active Plan -->
+        <div id="planSubViewActive">
+          <div class="plan-header-card">
+            <div class="plan-badge">🧠 Brainstorming Studio</div>
+            <h2 class="plan-title" id="activePlanTitle">Active Implementation Plan</h2>
+            <div class="progress-bar-container">
+              <div class="progress-bar" id="planProgressBar" style="width: 0%;"></div>
+            </div>
+            <span class="progress-text" id="planProgressText">No steps yet</span>
+          </div>
+
+          <!-- Plan Task Checklists -->
+          <div class="card plan-card">
+            <div class="card-header">
+              <span class="card-title">📋 Milestones & File Targets</span>
+              <button class="icon-btn" onclick="fetchActivePlan()">🔄</button>
+            </div>
+            <div class="plan-tasks-list" id="planTasksList">
+              <div class="plan-empty-state">Loading active plan...</div>
+            </div>
+          </div>
+
+          <!-- Sticky Floating Action Bar for Plan Execution -->
+          <div class="plan-cta-container">
+            <button class="btn btn-emerald btn-glow" id="approvePlanBtn" onclick="approveAndExecutePlan()">
+              ⚡ Approve & Execute Plan
+            </button>
+            <button class="btn btn-glass" onclick="switchTab('chat')">
+              💡 Refine in Chat
+            </button>
+          </div>
+        </div>
+
+        <!-- VIEW B: Completed Tasks Walkthrough -->
+        <div id="planSubViewWalkthrough" style="display:none;">
+          <div class="card walkthrough-hero-card">
+            <div class="card-header">
+              <div>
+                <span class="walkthrough-badge">✅ Task Execution Report</span>
+                <h2 class="walkthrough-title" id="walkthroughTitle">Completed Walkthrough</h2>
+              </div>
+              <button class="icon-btn" onclick="fetchActiveWalkthrough()">🔄</button>
+            </div>
+            <p class="history-subtext">Summary of files created, modified, and verified during the last plan execution.</p>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">📂 Files Modified & Verified</span>
+            </div>
+            <div class="timeline-files-list" id="walkthroughFilesList">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🧪 Execution & Verification Details</span>
+            </div>
+            <div class="diff-content" id="walkthroughContentArea">
+              <pre><code id="walkthroughReportText">Loading walkthrough...</code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: 📜 MOBILE CHANGE HISTORY & AUDIT LOG -->
+      <section id="tab-history" class="tab-pane">
+        <div class="card history-header-card">
+          <div class="history-summary">
+            <div>
+              <span class="history-badge">📜 Laptop Audit Trail</span>
+              <h2 class="history-heading">Mobile Change History</h2>
+            </div>
+            <button class="icon-btn" onclick="fetchHistory()" title="Refresh History">🔄</button>
+          </div>
+          <p class="history-subtext">Every prompt, file modification, and command executed from your phone is logged below.</p>
+        </div>
+
+        <!-- Timeline Stream -->
+        <div class="timeline-container" id="historyTimelineList">
+          <div class="plan-empty-state">Loading change history...</div>
+        </div>
+      </section>
+
+      <!-- TAB 5: 🐙 CODE & DIFFS -->
+      <section id="tab-diffs" class="tab-pane">
+        <div class="card diff-card">
+          <div class="card-header">
+            <span class="card-title" id="diffHeaderTitle">🐙 Working Tree Changes</span>
+            <button class="icon-btn" onclick="fetchGitDiff()">🔄</button>
+          </div>
+          <div class="diff-file-selector" id="diffFileList">
+            <!-- File pills populated by app.js -->
+          </div>
+          <div class="diff-content" id="diffContentArea">
+            <pre><code id="diffCodeText">Checking git status...</code></pre>
+          </div>
+        </div>
+
+        <div class="git-commit-bar">
+          <input type="text" id="commitMsgInput" class="input-glass" placeholder="Commit message (e.g. feat: add ETB format)">
+          <button class="btn btn-primary" onclick="executeGitCommitPush()">📤 Commit & Push</button>
+        </div>
+      </section>
+
+      <!-- TAB 6: ⚡ LIVE TERMINAL & LOGS -->
+      <section id="tab-terminal" class="tab-pane">
+        <div class="terminal-card">
+          <div class="terminal-header">
+            <div class="terminal-dots">
+              <span class="dot red"></span>
+              <span class="dot yellow"></span>
+              <span class="dot green"></span>
+            </div>
+            <span class="terminal-title">Dev Server Output (port <span id="termPort">8080</span>)</span>
+            <button class="icon-btn" onclick="fetchDevLogs()">🔄</button>
+          </div>
+          <div class="terminal-filter-bar">
+            <button class="filter-chip active" onclick="filterLogs('all', this)">All</button>
+            <button class="filter-chip" onclick="filterLogs('vite', this)">Vite / HMR</button>
+            <button class="filter-chip" onclick="filterLogs('error', this)">Errors</button>
+          </div>
+          <div class="terminal-body" id="terminalBody">
+            <pre><code id="terminalLogText">Connecting to server logs...</code></pre>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Bottom Tab Navigation Bar (5 Core Tabs) -->
+    <nav class="bottom-nav">
+      <button class="nav-item active" onclick="switchTab('dashboard', this)">
+        <span class="nav-icon">🎛️</span>
+        <span class="nav-label">Cockpit</span>
+      </button>
+      <button class="nav-item" onclick="switchTab('chat', this)">
+        <span class="nav-icon">💬</span>
+        <span class="nav-label">Chat</span>
+      </button>
+      <button class="nav-item" onclick="switchTab('plans', this)">
+        <span class="nav-icon">🧠</span>
+        <span class="nav-label">Plans</span>
+      </button>
+      <button class="nav-item" onclick="switchTab('history', this)">
+        <span class="nav-icon">📜</span>
+        <span class="nav-label">History</span>
+      </button>
+      <button class="nav-item" onclick="switchTab('diffs', this)">
+        <span class="nav-icon">🐙</span>
+        <span class="nav-label">Diffs</span>
+      </button>
+    </nav>
+
+    <!-- Project Switcher & Creator Modal -->
+    <div id="projectModal" class="modal-backdrop" onclick="toggleProjectModal(false)">
+      <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <h3>📂 Workspaces & Projects</h3>
+          <button class="close-btn" onclick="toggleProjectModal(false)">✕</button>
+        </div>
+
+        <!-- ➕ New Project Trigger Button -->
+        <button class="btn btn-primary" style="width:100%; margin-bottom:12px;" onclick="toggleNewProjectForm()">
+          ➕ Create New Project
+        </button>
+
+        <!-- New Project Creation Card (Collapsible) -->
+        <div id="newProjectCard" style="display:none; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.25); border-radius:14px; padding:14px; margin-bottom:14px;">
+          <h4 style="font-size:13px; margin-bottom:8px; color:#A5B4FC;">🚀 New Project Details</h4>
+          <input type="text" id="newProjectNameInput" class="input-glass" placeholder="Project name (e.g. mobile-demo)" style="width:100%; margin-bottom:10px;">
+          
+          <div style="font-size:11px; color:#94A3B8; margin-bottom:6px;">Select Template:</div>
+          <div class="prompt-chips-bar" style="margin-bottom:10px;">
+            <button type="button" class="chip active-template" id="tplHtmlBtn" onclick="selectTemplate('html', this)">📄 HTML/CSS/JS</button>
+            <button type="button" class="chip" id="tplBlankBtn" onclick="selectTemplate('blank', this)">📁 Blank Workspace</button>
+          </div>
+
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-emerald" style="flex:1;" onclick="submitCreateNewProject()">⚡ Create & Switch</button>
+            <button class="btn btn-glass" onclick="toggleNewProjectForm(false)">Cancel</button>
+          </div>
+        </div>
+
+        <div class="section-title" style="margin-top:8px;">Existing Workspaces</div>
+        <div class="project-list" id="modalProjectList">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
