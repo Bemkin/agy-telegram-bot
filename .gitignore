@@ -38,7 +38,8 @@ cloudflared-windows-amd64.exe
 Thumbs.db
 desktop.ini
 
-# Temp audio files from voice processing
+# Media & video files
+*.mp4
 *.ogg
 *.wav
 *.mp3
