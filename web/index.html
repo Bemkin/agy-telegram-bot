@@ -44,7 +44,7 @@
             <button class="icon-btn" onclick="refreshPreview()" title="Refresh Screenshot">🔄</button>
           </div>
           <div class="preview-viewport" id="previewViewport" onclick="openLiveTunnel()">
-            <img id="previewImg" src="/api/preview/image" alt="Live App Preview" onerror="handlePreviewError()">
+            <img id="previewImg" alt="Live App Preview" onerror="handlePreviewError()">
             <div class="preview-overlay">
               <span class="live-pill">🟢 Live on Port <span id="previewPort">8080</span></span>
               <span class="overlay-text">Tap to Open Live App ↗</span>

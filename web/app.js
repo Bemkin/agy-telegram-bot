@@ -10,6 +10,14 @@ if (tg) {
   tg.enableClosingConfirmation();
 }
 
+// Every API call proves it comes from the bot owner's Telegram client by sending
+// the signed initData Telegram gave this Mini App. The server rejects anything else.
+function apiFetch(url, options = {}) {
+  const headers = new Headers(options.headers || {});
+  headers.set("X-Telegram-Init-Data", tg?.initData || "");
+  return fetch(url, { ...options, headers });
+}
+
 // Global State (dynamically populated on boot via /api/status)
 let appState = {
   project: "",
@@ -79,7 +87,7 @@ function switchTab(tabName, btnElement) {
 // ── Status Polling ──────────────────────────────────────────────────
 async function fetchStatus() {
   try {
-    const res = await fetch("/api/status");
+    const res = await apiFetch("/api/status");
     if (!res.ok) return;
     const data = await res.json();
 
@@ -148,7 +156,7 @@ async function submitChatMessage() {
   scrollChatToBottom();
 
   try {
-    const res = await fetch("/api/chat/send", {
+    const res = await apiFetch("/api/chat/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: text }),
@@ -295,7 +303,7 @@ function switchPlanSubView(viewName, btnElement) {
 async function fetchActivePlan() {
   const container = document.getElementById("planTasksList");
   try {
-    const res = await fetch("/api/plan/active");
+    const res = await apiFetch("/api/plan/active");
     if (!res.ok) {
       container.innerHTML = `<div class="plan-empty-state">No active plan found.<br>Send <code>/plan &lt;feature&gt;</code> in chat to start!</div>`;
       return;
@@ -339,7 +347,7 @@ async function fetchActiveWalkthrough() {
   const reportText = document.getElementById("walkthroughReportText");
 
   try {
-    const res = await fetch("/api/plan/walkthrough");
+    const res = await apiFetch("/api/plan/walkthrough");
     if (!res.ok) {
       if (filesList) filesList.innerHTML = `<div style="font-size:11px; color:#64748B;">No completed walkthrough on record yet.</div>`;
       if (reportText) reportText.textContent = "Execute a plan to see the verified task completion report here.";
@@ -374,7 +382,7 @@ async function approveAndExecutePlan() {
   btn.disabled = true;
 
   try {
-    const res = await fetch("/api/plan/approve", { method: "POST" });
+    const res = await apiFetch("/api/plan/approve", { method: "POST" });
     const data = await res.json();
     hapticNotification("success");
     btn.textContent = "✅ Plan Executed Successfully!";
@@ -404,7 +412,7 @@ async function fetchHistory() {
   if (!container) return;
 
   try {
-    const res = await fetch("/api/history");
+    const res = await apiFetch("/api/history");
     if (!res.ok) {
       container.innerHTML = `<div class="plan-empty-state">No audit logs recorded yet.</div>`;
       return;
@@ -475,9 +483,23 @@ function toggleFullHistory(id, index) {
 // ── Live App Preview & Tunnel ───────────────────────────────────────
 function refreshPreview() {
   hapticImpact("medium");
+  loadPreviewImage();
+}
+
+// <img src> cannot send headers, so fetch the screenshot with auth and show it as a blob.
+let previewObjectUrl = null;
+async function loadPreviewImage() {
   const img = document.getElementById("previewImg");
-  if (img) {
-    img.src = `/api/preview/image?t=${Date.now()}`;
+  if (!img) return;
+  try {
+    const res = await apiFetch(`/api/preview/image?t=${Date.now()}`);
+    if (!res.ok) throw new Error(`preview ${res.status}`);
+    const blob = await res.blob();
+    if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+    previewObjectUrl = URL.createObjectURL(blob);
+    img.src = previewObjectUrl;
+  } catch (err) {
+    handlePreviewError();
   }
 }
 
@@ -504,7 +526,7 @@ function openLiveTunnel() {
 async function toggleTunnel() {
   hapticImpact("medium");
   try {
-    const res = await fetch("/api/tunnel/toggle", { method: "POST" });
+    const res = await apiFetch("/api/tunnel/toggle", { method: "POST" });
     const data = await res.json();
     if (data.url) {
       appState.tunnelUrl = data.url;
@@ -521,7 +543,7 @@ async function toggleTunnel() {
 async function restartDevServer() {
   hapticImpact("medium");
   try {
-    const res = await fetch("/api/dev/restart", { method: "POST" });
+    const res = await apiFetch("/api/dev/restart", { method: "POST" });
     const data = await res.json();
     hapticNotification("success");
     fetchStatus();
@@ -534,7 +556,7 @@ async function restartDevServer() {
 async function fetchGitDiff() {
   const codeEl = document.getElementById("diffCodeText");
   try {
-    const res = await fetch("/api/git/diff");
+    const res = await apiFetch("/api/git/diff");
     const data = await res.json();
 
     if (!data.diff || data.diff.trim() === "") {
@@ -567,7 +589,7 @@ async function executeGitCommitPush() {
   hapticImpact("heavy");
 
   try {
-    const res = await fetch("/api/git/push", {
+    const res = await apiFetch("/api/git/push", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: msg }),
@@ -588,7 +610,7 @@ let fullLogCache = "";
 async function fetchDevLogs() {
   const termEl = document.getElementById("terminalLogText");
   try {
-    const res = await fetch("/api/dev/logs");
+    const res = await apiFetch("/api/dev/logs");
     const data = await res.json();
     fullLogCache = data.logs || "No logs recorded.";
     renderLogs(fullLogCache);
@@ -638,7 +660,7 @@ async function toggleProjectModal(show = true) {
     listEl.innerHTML = "Loading projects...";
 
     try {
-      const res = await fetch("/api/projects");
+      const res = await apiFetch("/api/projects");
       const data = await res.json();
       listEl.innerHTML = data.projects
         .map(
@@ -664,7 +686,7 @@ async function toggleProjectModal(show = true) {
 async function selectProject(projectName) {
   hapticImpact("heavy");
   try {
-    await fetch("/api/projects/switch", {
+    await apiFetch("/api/projects/switch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: projectName }),
@@ -712,7 +734,7 @@ async function submitCreateNewProject() {
 
   hapticImpact("heavy");
   try {
-    const res = await fetch("/api/projects/create", {
+    const res = await apiFetch("/api/projects/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: name, template: selectedProjectTemplate }),
@@ -741,5 +763,6 @@ async function submitCreateNewProject() {
 // ── Initial Boot ────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
   fetchStatus();
+  loadPreviewImage();
   setInterval(fetchStatus, 3500); // 3.5s background polling
 });
