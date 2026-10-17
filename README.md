@@ -118,6 +118,7 @@ python tests/run_all_tests.py
 
 - **User Whitelist**: Only messages from `AUTHORIZED_USER_ID` are processed; all others are rejected and logged.
 - **No Inbound Open Ports**: Uses long polling for Telegram and outbound Cloudflare tunnels for previewing.
+- **Signed Mini App Requests**: The Mission Control API is reachable through a public tunnel, so every `/api` request must carry the Mini App's Telegram-signed `initData`. The server verifies the HMAC signature with your bot token, rejects data older than 24 hours, and only accepts `AUTHORIZED_USER_ID`. No CORS headers are sent, so other websites cannot call the API.
 - **Local Machine Access**: The agent operates directly within your configured project directory.
 
 ---

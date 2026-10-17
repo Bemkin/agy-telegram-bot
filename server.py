@@ -9,13 +9,13 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Response
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from config import Config
+from webapp_auth import INIT_DATA_HEADER, InitDataError, validate_init_data
 
 logger = logging.getLogger("mission-control-server")
 
@@ -24,14 +24,24 @@ PROJECTS_ROOT = Path(Config.PROJECTS_ROOT)
 
 app = FastAPI(title="Antigravity Mission Control")
 
-# Enable CORS for Telegram WebApp
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# The Mini App is served from this same origin, so no CORS headers are sent:
+# other websites cannot call the API from a browser.
+
+
+@app.middleware("http")
+async def require_telegram_owner(request: Request, call_next):
+    """Reject /api requests unless they carry valid initData from the bot owner."""
+    if request.url.path.startswith("/api/"):
+        try:
+            validate_init_data(
+                request.headers.get(INIT_DATA_HEADER),
+                Config.TELEGRAM_BOT_TOKEN,
+                Config.AUTHORIZED_USER_ID,
+            )
+        except InitDataError as exc:
+            logger.warning("Rejected %s %s: %s", request.method, request.url.path, exc)
+            return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+    return await call_next(request)
 
 # Reference to bot context managers (injected on startup)
 bot_context = {
